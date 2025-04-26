@@ -1,9 +1,9 @@
 ## Menus
 
 notero-collection-menu-sync = 
-    .label = 同步条目至 Notion
+    .label = 同步条目至语雀
 notero-item-menu-sync = 
-    .label = 同步到 Notion
+    .label = 同步到语雀
 notero-tools-menu-preferences = 
     .label = Notero 首选项…
 
@@ -23,8 +23,8 @@ notero-preferences-notion-database = 数据库:
 ## Property preferences
 
 notero-preferences-properties-groupbox-heading = 属性偏好
-notero-preferences-properties-groupbox-description = 自定义项目属性如何同步到 Notion。
-notero-preferences-page-title-format = 概念页面标题:
+notero-preferences-properties-groupbox-description = 自定义项目属性如何同步到语雀。
+notero-preferences-page-title-format = 语雀页面标题:
 
 ## Page title format options
 
@@ -68,4 +68,24 @@ notero-error-note-conversion-failed = 无法将笔记内容转换为 Notion 块�
 notero-error-note-parent-not-synced = 无法同步注释，因为其父项尚未同步。
 notero-error-note-sync-failed = 无法将笔记同步到 Notion。
 notero-error-note-without-parent = 没有父项则无法同步注释。
-notero-error-notion-link-attachment = 无法创建 Notion 链接附件。这将导致重复的 Notion 页面。请确保在 www.notion.so/my-integrations 上为 Notero 集成启用了“读取内容”功能。
+notero-error-notion-link-attachment = 无法创建 Notion 链接附件。这将导致重复的 Notion 页面。请确保在 www.notion.so/my-integrations 上为 Notero 集成启用了"读取内容"功能。
+notero-error-missing-yuque-base-url = 未提供语雀文档基础 URL。请在 Notero 偏好设置中输入该值。
+notero-error-missing-yuque-group-login = 未提供语雀团队或用户登录名。请在 Notero 偏好设置中输入该值。
+notero-error-missing-yuque-book-slug = 未提供语雀知识库标识。请在 Notero 偏好设置中输入该值。
+notero-error-missing-yuque-token = 未提供语雀访问令牌。请在 Notero 偏好设置中输入该值。
+notero-error-yuque-sync-failed = 无法将项目同步到语雀。
+
+## Yuque preferences
+
+notero-preferences-yuque-groupbox-heading = 语雀首选项
+notero-preferences-yuque-groupbox-description = 有关获取这些值的说明，请查看 <label data-l10n-name="notero-preferences-readme">README</label>.
+notero-preferences-yuque-base-url = 文档基础 URL:
+notero-preferences-yuque-group-login = 团队或用户登录名:
+notero-preferences-yuque-book-slug = 知识库标识:
+notero-preferences-yuque-token = 访问令牌:
+notero-preferences-yuque-token-visibility = 
+    .tooltiptext =
+        { $action ->
+            [conceal] 隐藏令牌
+           *[reveal] 显示令牌
+        }

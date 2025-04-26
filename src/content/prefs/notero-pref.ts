@@ -3,11 +3,13 @@ import { MissingPrefError } from '../errors';
 
 export enum NoteroPref {
   collectionSyncConfigs = 'collectionSyncConfigs',
-  notionDatabaseID = 'notionDatabaseID',
-  notionToken = 'notionToken',
   pageTitleFormat = 'pageTitleFormat',
   syncNotes = 'syncNotes',
   syncOnModifyItems = 'syncOnModifyItems',
+  yuqueBaseUrl = 'yuqueBaseUrl',
+  yuqueGroupLogin = 'yuqueGroupLogin',
+  yuqueBookSlug = 'yuqueBookSlug',
+  yuqueToken = 'yuqueToken',
 }
 
 export enum PageTitleFormat {
@@ -37,11 +39,13 @@ export const PAGE_TITLE_FORMAT_L10N_IDS: Record<
 
 type NoteroPrefValue = Partial<{
   [NoteroPref.collectionSyncConfigs]: string;
-  [NoteroPref.notionDatabaseID]: string;
-  [NoteroPref.notionToken]: string;
   [NoteroPref.pageTitleFormat]: PageTitleFormat;
   [NoteroPref.syncNotes]: boolean;
   [NoteroPref.syncOnModifyItems]: boolean;
+  [NoteroPref.yuqueBaseUrl]: string;
+  [NoteroPref.yuqueGroupLogin]: string;
+  [NoteroPref.yuqueBookSlug]: string;
+  [NoteroPref.yuqueToken]: string;
 }>;
 
 function buildFullPrefName(pref: NoteroPref): string {
@@ -84,11 +88,13 @@ function convertRawPrefValue<P extends NoteroPref>(
 
   return {
     [NoteroPref.collectionSyncConfigs]: stringPref,
-    [NoteroPref.notionDatabaseID]: stringPref,
-    [NoteroPref.notionToken]: stringPref,
     [NoteroPref.pageTitleFormat]: pageTitleFormatPref,
     [NoteroPref.syncNotes]: booleanPref,
     [NoteroPref.syncOnModifyItems]: booleanPref,
+    [NoteroPref.yuqueBaseUrl]: stringPref,
+    [NoteroPref.yuqueGroupLogin]: stringPref,
+    [NoteroPref.yuqueBookSlug]: stringPref,
+    [NoteroPref.yuqueToken]: stringPref,
   }[pref];
 }
 

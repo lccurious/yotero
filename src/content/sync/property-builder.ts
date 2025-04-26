@@ -117,13 +117,18 @@ class PropertyBuilder {
   }
 
   private getAuthorDateCitation(): string {
-    let citation =
-      this.item.getField('firstCreator') || this.item.getDisplayTitle();
-    let date = this.item.getField('date', true, true);
-    if (date && (date = date.substring(0, 4)) !== '0000') {
-      citation += ', ' + date;
-    }
-    return citation;
+    const creators = this.item.getCreators();
+    if (!creators.length) return this.getTitle();
+
+    const firstCreator = creators[0];
+    if (!firstCreator) return this.getTitle();
+
+    const lastName = firstCreator.lastName || '';
+    const year = this.item.getField('date')?.split('-')[0] || '';
+
+    if (!lastName || !year) return this.getTitle();
+
+    return `${lastName}, ${year}`;
   }
 
   private getCitationKey(): string | undefined {

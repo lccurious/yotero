@@ -1,20 +1,13 @@
-import { Client, Logger, LogLevel } from '@notionhq/client';
-
-import { getRequiredNoteroPref, NoteroPref } from '../prefs/notero-pref';
+import { MissingPrefError } from '../errors';
 import { logger } from '../utils';
 
-const notionLogger: Logger = (level, message, extraInfo) => {
-  level = level === LogLevel.INFO ? LogLevel.DEBUG : level;
-  logger[level](message, extraInfo);
-};
+export class NotionClientError extends Error {
+  public constructor(message: string, options?: ErrorOptions) {
+    super(message, options);
+    this.name = 'NotionClientError';
+  }
+}
 
-export function getNotionClient(window: Window) {
-  const authToken = getRequiredNoteroPref(NoteroPref.notionToken);
-
-  return new Client({
-    auth: authToken,
-    fetch: window.fetch.bind(window),
-    logger: notionLogger,
-    logLevel: LogLevel.DEBUG,
-  });
+export function getNotionClient(): never {
+  throw new NotionClientError('Notion client is no longer supported');
 }

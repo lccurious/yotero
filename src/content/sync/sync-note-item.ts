@@ -1,46 +1,17 @@
-import { type Client, isFullBlock } from '@notionhq/client';
-import type { BlockObjectRequest } from '@notionhq/client/build/src/api-endpoints';
-
-import {
-  getNotionPageID,
-  getSyncedNotes,
-  saveSyncedNote,
-} from '../data/item-data';
+import { YuqueClient } from './yuque-client';
 import { LocalizableError } from '../errors';
-
-import { convertHtmlToBlocks } from './html-to-notion';
-import { LIMITS } from './notion-limits';
-import { ChildBlock } from './notion-types';
-import { isArchivedOrNotFoundError } from './notion-utils';
+import { logger } from '../utils';
+import { saveYuqueLinkAttachment } from '../data/item-data';
 
 /**
- * Sync a Zotero note item to Notion as children blocks of the page for its
- * parent regular item.
+ * Sync a Zotero note item to Yuque.
  *
- * All notes are children of a single toggle heading block on the page. This
- * enables Notero to have a single container on the page where it can update
- * note content without impacting anything else on the page added by the user.
- * Within this top-level container block, each note is contained within its own
- * toggle heading block using the note title.
- *
- * Syncing a note performs the following steps:
- * 1. If the top-level container block ID is not saved in Zotero, create the
- *    block by appending it to the page and save its ID.
- * 2. If a block ID is saved in Zotero for the note's toggle heading, delete
- *    the block (including all its children).
- * 3. Append a new toggle heading block with the note content as a child of
- *    the desired container block.
- *    - For new notes, the container is the top-level container block.
- *    - For existing notes, the container is the existing parent block. This
- *      supports notes within synced blocks as the synced block is used as the
- *      container rather than the top-level container.
- *
- * @param noteItem the Zotero note item to sync to Notion
- * @param notion an initialized Notion `Client` instance
+ * @param noteItem the Zotero note item to sync to Yuque
+ * @param params any additional parameters needed for the sync process
  */
 export async function syncNoteItem(
   noteItem: Zotero.Item,
-  notion: Client,
+  params: any,
 ): Promise<void> {
   if (noteItem.isTopLevelItem()) {
     throw new LocalizableError(
@@ -50,183 +21,27 @@ export async function syncNoteItem(
   }
 
   const regularItem = noteItem.topLevelItem;
-  const pageID = getNotionPageID(regularItem);
-
-  if (!pageID) {
-    throw new LocalizableError(
-      'Cannot sync note because its parent item is not synced',
-      'notero-error-note-parent-not-synced',
-    );
-  }
-
-  const syncedNotes = getSyncedNotes(regularItem);
-  let { containerBlockID } = syncedNotes;
-
-  if (!containerBlockID) {
-    containerBlockID = await createContainerBlock(notion, pageID);
-  }
-
-  const existingNoteBlockID = syncedNotes.notes?.[noteItem.key]?.blockID;
-
-  if (existingNoteBlockID) {
-    containerBlockID = await getEffectiveContainerBlockID(
-      notion,
-      existingNoteBlockID,
-      containerBlockID,
-    );
-    await deleteNoteBlock(notion, existingNoteBlockID);
-  }
-
-  let newNoteBlockID;
+  const yuqueClient = new YuqueClient();
 
   try {
-    newNoteBlockID = await createNoteBlock(notion, containerBlockID, noteItem);
+    // 获取笔记内容
+    const noteContent = noteItem.getNote();
+    const noteTitle = noteItem.getNoteTitle();
+
+    // 创建或更新语雀文档
+    const response = await yuqueClient.createDoc(
+      noteTitle,
+      noteContent
+    );
+
+    // 保存语雀文档链接
+    await saveYuqueLinkAttachment(noteItem, response.data.slug);
   } catch (error) {
-    if (!isArchivedOrNotFoundError(error)) {
-      throw error;
-    }
-
-    containerBlockID = await createContainerBlock(notion, pageID);
-    newNoteBlockID = await createNoteBlock(notion, containerBlockID, noteItem);
-  } finally {
-    await saveSyncedNote(
-      regularItem,
-      containerBlockID,
-      newNoteBlockID,
-      noteItem.key,
-    );
-  }
-
-  await addNoteBlockContent(notion, newNoteBlockID, noteItem);
-}
-
-async function createContainerBlock(
-  notion: Client,
-  pageID: string,
-): Promise<string> {
-  const { results } = await notion.blocks.children.append({
-    block_id: pageID,
-    children: [
-      {
-        heading_1: {
-          rich_text: [{ text: { content: 'Zotero Notes' } }],
-          is_toggleable: true,
-        },
-      },
-    ],
-  });
-
-  if (!results[0]) {
+    logger.error('Failed to sync note to Yuque:', error);
     throw new LocalizableError(
-      'Failed to create container block',
-      'notero-error-note-sync-failed',
+      'Failed to sync note to Yuque',
+      'notero-error-yuque-sync-failed',
+      { cause: error }
     );
   }
-
-  return results[0].id;
-}
-
-async function createNoteBlock(
-  notion: Client,
-  containerBlockID: string,
-  noteItem: Zotero.Item,
-): Promise<string> {
-  const { results } = await notion.blocks.children.append({
-    block_id: containerBlockID,
-    children: [
-      {
-        heading_1: {
-          rich_text: [{ text: { content: noteItem.getNoteTitle() } }],
-          is_toggleable: true,
-        },
-      },
-    ],
-  });
-
-  if (!results[0]) {
-    throw new LocalizableError(
-      'Failed to create note block',
-      'notero-error-note-sync-failed',
-    );
-  }
-
-  return results[0].id;
-}
-
-async function addNoteBlockContent(
-  notion: Client,
-  noteBlockID: string,
-  noteItem: Zotero.Item,
-): Promise<void> {
-  const blockBatches = buildNoteBlockBatches(noteItem);
-
-  for (const blocks of blockBatches) {
-    await notion.blocks.children.append({
-      block_id: noteBlockID,
-      children: blocks,
-    });
-  }
-}
-
-function buildNoteBlockBatches(noteItem: Zotero.Item): BlockObjectRequest[][] {
-  let blocks;
-  try {
-    blocks = convertHtmlToBlocks(noteItem.getNote());
-  } catch (error) {
-    throw new LocalizableError(
-      'Failed to convert note content to Notion blocks',
-      'notero-error-note-conversion-failed',
-      { cause: error },
-    );
-  }
-
-  const numBatches = Math.ceil(blocks.length / LIMITS.BLOCK_ARRAY_ELEMENTS);
-  const batches = new Array<ChildBlock[]>(numBatches);
-  let offset = 0;
-  let nextOffset = LIMITS.BLOCK_ARRAY_ELEMENTS;
-
-  for (let i = 0; i < numBatches; ++i) {
-    batches[i] = blocks.slice(offset, nextOffset);
-    offset = nextOffset;
-    nextOffset += LIMITS.BLOCK_ARRAY_ELEMENTS;
-  }
-
-  // @ts-expect-error FIXME: This will result in errors if `batches` contains
-  // more than two levels of nested blocks.
-  // https://github.com/dvanoni/notero/issues/463
-  return batches;
-}
-
-async function deleteNoteBlock(notion: Client, blockID: string): Promise<void> {
-  try {
-    await notion.blocks.delete({ block_id: blockID });
-  } catch (error) {
-    if (!isArchivedOrNotFoundError(error)) {
-      throw error;
-    }
-  }
-}
-
-async function getEffectiveContainerBlockID(
-  notion: Client,
-  noteBlockID: string,
-  containerBlockID: string,
-): Promise<string> {
-  const block = await notion.blocks.retrieve({ block_id: noteBlockID });
-
-  if (
-    isFullBlock(block) &&
-    'block_id' in block.parent &&
-    block.parent.block_id !== containerBlockID
-  ) {
-    const parentBlock = await notion.blocks.retrieve({
-      block_id: block.parent.block_id,
-    });
-
-    if (isFullBlock(parentBlock) && !parentBlock.in_trash) {
-      return parentBlock.id;
-    }
-  }
-
-  return containerBlockID;
 }

@@ -1,5 +1,3 @@
-import { isFullDatabase } from '@notionhq/client';
-import type { DatabaseObjectResponse } from '@notionhq/client/build/src/api-endpoints';
 import React from 'react';
 import ReactDOM from 'react-dom';
 import type { createRoot } from 'react-dom/client';
@@ -50,46 +48,31 @@ function setMenuItems(menuList: XUL.MenuListElement, items: MenuItem[]): void {
 }
 
 class Preferences {
-  private notionDatabaseError!: XUL.DescriptionElement;
-  private notionDatabaseMenu!: XUL.MenuListElement;
-  private notionTokenInput!: HTMLInputElement;
-  private notionTokenVisibilityToggle!: XUL.ButtonElement;
   private pageTitleFormatMenu!: XUL.MenuListElement;
   private prefObserverSymbol!: symbol;
+  private yuqueTokenInput!: HTMLInputElement;
+  private yuqueTokenVisibilityToggle!: XUL.ButtonElement;
 
   public async init(): Promise<void> {
     await Zotero.uiReadyPromise;
 
-    this.notionTokenInput = document.getElementById(
-      'notero-notionToken',
-    ) as HTMLInputElement;
     /* eslint-disable @typescript-eslint/no-non-null-assertion */
-    this.notionTokenVisibilityToggle = getXULElementById(
-      'notero-notionToken-visibility',
-    )!;
-    this.notionDatabaseError = getXULElementById('notero-notionDatabaseError')!;
-    this.notionDatabaseMenu = getXULElementById('notero-notionDatabase')!;
     this.pageTitleFormatMenu = getXULElementById('notero-pageTitleFormat')!;
+    this.yuqueTokenInput = document.getElementById(
+      'notero-yuqueToken',
+    ) as HTMLInputElement;
+    this.yuqueTokenVisibilityToggle = getXULElementById(
+      'notero-yuqueToken-visibility',
+    )!;
     /* eslint-enable @typescript-eslint/no-non-null-assertion */
-
-    this.prefObserverSymbol = registerNoteroPrefObserver(
-      NoteroPref.notionToken,
-      () => {
-        void this.refreshNotionDatabaseMenu();
-      },
-    );
 
     window.addEventListener('unload', () => {
       this.deinit();
     });
 
+    // Initialize page title format menu first
     await this.initPageTitleFormatMenu();
     await this.initSyncConfigsTable();
-
-    // Don't block window from loading while waiting for network response
-    setTimeout(() => {
-      void this.refreshNotionDatabaseMenu();
-    }, 100);
   }
 
   private deinit(): void {
@@ -148,70 +131,13 @@ class Preferences {
     return Boolean(addon?.isActive);
   }
 
-  private async refreshNotionDatabaseMenu(): Promise<void> {
-    let menuItems: MenuItem[] = [];
-
-    this.notionDatabaseMenu.disabled = true;
-    this.notionDatabaseError.hidden = true;
-
-    try {
-      const databases = await this.retrieveNotionDatabases();
-
-      menuItems = databases.map<MenuItem>((database) => {
-        const title = database.title.map((t) => t.plain_text).join('');
-        const icon =
-          database.icon?.type === 'emoji' ? database.icon.emoji : null;
-
-        return {
-          label: icon ? `${icon} ${title}` : title,
-          value: normalizeID(database.id),
-        };
-      });
-
-      this.notionDatabaseMenu.disabled = false;
-    } catch (error) {
-      this.notionDatabaseMenu.disabled = true;
-      this.notionDatabaseError.hidden = false;
-      this.notionDatabaseError.value = await getLocalizedErrorMessage(
-        error,
-        document.l10n,
-      );
-    }
-
-    setMenuItems(this.notionDatabaseMenu, menuItems);
-  }
-
-  private async retrieveNotionDatabases(): Promise<DatabaseObjectResponse[]> {
-    try {
-      const notion = getNotionClient(window);
-
-      const response = await notion.search({
-        filter: { property: 'object', value: 'database' },
-      });
-
-      const databases = response.results.filter(isFullDatabase);
-
-      if (databases.length === 0) {
-        throw new LocalizableError(
-          'No Notion databases are accessible',
-          'notero-error-no-notion-databases',
-        );
-      }
-
-      return databases;
-    } catch (error) {
-      logger.error(error);
-      throw error;
-    }
-  }
-
-  public toggleNotionTokenVisibility(): void {
-    const isVisible = this.notionTokenInput.type !== 'password';
-    this.notionTokenInput.type = isVisible ? 'password' : 'text';
-    this.notionTokenVisibilityToggle.image = isVisible
+  public toggleYuqueTokenVisibility(): void {
+    const isVisible = this.yuqueTokenInput.type !== 'password';
+    this.yuqueTokenInput.type = isVisible ? 'password' : 'text';
+    this.yuqueTokenVisibilityToggle.image = isVisible
       ? 'chrome://zotero/skin/16/universal/view.svg'
       : 'chrome://zotero/skin/16/universal/hide.svg';
-    document.l10n.setArgs(this.notionTokenVisibilityToggle, {
+    document.l10n.setArgs(this.yuqueTokenVisibilityToggle, {
       action: isVisible ? 'reveal' : 'conceal',
     });
   }

@@ -1,9 +1,9 @@
 ## Menus
 
 notero-collection-menu-sync =
-    .label = Sync Items to Notion
+    .label = Sync Items to Yuque
 notero-item-menu-sync =
-    .label = Sync to Notion
+    .label = Sync to Yuque
 notero-tools-menu-preferences =
     .label = Notero Preferences…
 
@@ -19,11 +19,25 @@ notero-preferences-notion-token-visibility =
     }
 notero-preferences-notion-database = Database:
 
+## Yuque preferences
+
+notero-preferences-yuque-groupbox-heading = Yuque Preferences
+notero-preferences-yuque-groupbox-description = For instructions on obtaining these values, view the <label data-l10n-name="notero-preferences-readme">README</label>.
+notero-preferences-yuque-base-url = Document Base URL:
+notero-preferences-yuque-group-login = Group or User Login:
+notero-preferences-yuque-book-slug = Book Slug:
+notero-preferences-yuque-token = Access Token:
+notero-preferences-yuque-token-visibility = 
+    .tooltiptext = { $action ->
+        [conceal] Conceal token
+       *[reveal] Reveal token
+    }
+
 ## Property preferences
 
 notero-preferences-properties-groupbox-heading = Property Preferences
-notero-preferences-properties-groupbox-description = Customize how item properties sync to Notion.
-notero-preferences-page-title-format = Notion Page Title:
+notero-preferences-properties-groupbox-description = Customize how item properties sync to Yuque.
+notero-preferences-page-title-format = Yuque Page Title:
 
 ## Page title format options
 
@@ -68,3 +82,8 @@ notero-error-note-parent-not-synced = Cannot sync note because its parent item i
 notero-error-note-sync-failed = Failed to sync note to Notion.
 notero-error-note-without-parent = Cannot sync note without a parent item.
 notero-error-notion-link-attachment = Failed to create Notion link attachment. This will result in duplicate Notion pages. Please ensure that the "read content" capability is enabled for the Notero integration at www.notion.so/my-integrations.
+notero-error-missing-yuque-base-url = Missing Yuque document base URL. Please enter it in Notero preferences.
+notero-error-missing-yuque-group-login = Missing Yuque group or user login. Please enter it in Notero preferences.
+notero-error-missing-yuque-book-slug = Missing Yuque book slug. Please enter it in Notero preferences.
+notero-error-missing-yuque-token = Missing Yuque access token. Please enter it in Notero preferences.
+notero-error-yuque-sync-failed = Failed to sync item to Yuque.

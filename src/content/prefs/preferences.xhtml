@@ -3,11 +3,11 @@
 </linkset>
 
 <!-- The `notero` variable used below is defined in `scripts/build.ts` -->
-<groupbox onload="notero.preferences.init();">
+<groupbox>
   <label>
-    <html:h2 data-l10n-id="notero-preferences-notion-groupbox-heading" />
+    <html:h2 data-l10n-id="notero-preferences-yuque-groupbox-heading" />
   </label>
-  <label data-l10n-id="notero-preferences-notion-groupbox-description">
+  <label data-l10n-id="notero-preferences-yuque-groupbox-description">
     <label
       data-l10n-name="notero-preferences-readme"
       is="zotero-text-link"
@@ -15,39 +15,57 @@
     />
   </label>
   <separator class="thin" />
-  <hbox align="center" id="notero-notionToken-container">
+  <hbox align="center">
     <label
-      control="notero-notionToken"
-      data-l10n-id="notero-preferences-notion-token"
+      control="notero-yuqueBaseUrl"
+      data-l10n-id="notero-preferences-yuque-base-url"
     />
     <html:input
-      id="notero-notionToken"
-      preference="extensions.notero.notionToken"
-      type="password"
-    />
-    <button
-      data-l10n-id="notero-preferences-notion-token-visibility"
-      data-l10n-args='{"action":"reveal"}'
-      id="notero-notionToken-visibility"
-      image="chrome://zotero/skin/16/universal/view.svg"
-      oncommand="notero.preferences.toggleNotionTokenVisibility();"
+      id="notero-yuqueBaseUrl"
+      preference="extensions.notero.yuqueBaseUrl"
+      type="text"
     />
   </hbox>
   <hbox align="center">
     <label
-      control="notero-notionDatabase"
-      data-l10n-id="notero-preferences-notion-database"
+      control="notero-yuqueGroupLogin"
+      data-l10n-id="notero-preferences-yuque-group-login"
     />
-    <menulist
-      id="notero-notionDatabase"
-      disabled="true"
-      native="true"
-      preference="extensions.notero.notionDatabaseID"
-    >
-      <menupopup />
-    </menulist>
+    <html:input
+      id="notero-yuqueGroupLogin"
+      preference="extensions.notero.yuqueGroupLogin"
+      type="text"
+    />
   </hbox>
-  <label id="notero-notionDatabaseError" hidden="true" />
+  <hbox align="center">
+    <label
+      control="notero-yuqueBookSlug"
+      data-l10n-id="notero-preferences-yuque-book-slug"
+    />
+    <html:input
+      id="notero-yuqueBookSlug"
+      preference="extensions.notero.yuqueBookSlug"
+      type="text"
+    />
+  </hbox>
+  <hbox align="center" id="notero-yuqueToken-container">
+    <label
+      control="notero-yuqueToken"
+      data-l10n-id="notero-preferences-yuque-token"
+    />
+    <html:input
+      id="notero-yuqueToken"
+      preference="extensions.notero.yuqueToken"
+      type="password"
+    />
+    <button
+      data-l10n-id="notero-preferences-yuque-token-visibility"
+      data-l10n-args='{"action":"reveal"}'
+      id="notero-yuqueToken-visibility"
+      image="chrome://zotero/skin/16/universal/view.svg"
+      oncommand="notero.preferences.toggleYuqueTokenVisibility();"
+    />
+  </hbox>
 </groupbox>
 
 <groupbox>
@@ -63,11 +81,17 @@
     />
     <menulist
       id="notero-pageTitleFormat"
-      disabled="true"
       native="true"
       preference="extensions.notero.pageTitleFormat"
     >
-      <menupopup />
+      <menupopup>
+        <menuitem value="itemAuthorDateCitation" data-l10n-id="notero-page-title-format-item-author-date-citation" />
+        <menuitem value="itemCitationKey" data-l10n-id="notero-page-title-format-item-citation-key" />
+        <menuitem value="itemFullCitation" data-l10n-id="notero-page-title-format-item-full-citation" />
+        <menuitem value="itemInTextCitation" data-l10n-id="notero-page-title-format-item-in-text-citation" />
+        <menuitem value="itemShortTitle" data-l10n-id="notero-page-title-format-item-short-title" />
+        <menuitem value="itemTitle" data-l10n-id="notero-page-title-format-item-title" />
+      </menupopup>
     </menulist>
   </hbox>
 </groupbox>

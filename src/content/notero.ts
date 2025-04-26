@@ -1,5 +1,3 @@
-import type { Client } from '@notionhq/client';
-
 import type { PluginInfo } from './plugin-info';
 import {
   EventManager,
@@ -8,8 +6,6 @@ import {
   SyncManager,
   UIManager,
 } from './services';
-import { findDuplicates } from './sync/find-duplicates';
-import { getNotionClient } from './sync/notion-client';
 import { logger } from './utils';
 
 class Notero {
@@ -102,17 +98,6 @@ class Notero {
       service.removeFromWindow(window);
     });
     logger.groupEnd();
-  }
-
-  public getNotionClient(): Client {
-    const mainWindow = Zotero.getMainWindow();
-    if (!mainWindow) throw new Error('No window available');
-
-    return getNotionClient(mainWindow);
-  }
-
-  public findDuplicates(propertyName: string = 'title'): Promise<Set<string>> {
-    return findDuplicates(this.getNotionClient(), propertyName);
   }
 }
 

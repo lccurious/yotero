@@ -1,4 +1,4 @@
-import { type Client } from '@notionhq/client';
+import { YuqueClient } from './yuque-client';
 
 import { APA_STYLE } from '../constants';
 import { ItemSyncError } from '../errors';
@@ -10,17 +10,13 @@ import {
 } from '../prefs/notero-pref';
 import { getLocalizedErrorMessage, logger } from '../utils';
 
-import { getNotionClient } from './notion-client';
-import type { DatabaseProperties } from './notion-types';
 import { ProgressWindow } from './progress-window';
 import { syncNoteItem } from './sync-note-item';
 import { syncRegularItem } from './sync-regular-item';
 
 export type SyncJobParams = {
   citationFormat: string;
-  databaseID: string;
-  databaseProperties: DatabaseProperties;
-  notion: Client;
+  yuque: YuqueClient;
   pageTitleFormat: PageTitleFormat;
 };
 
@@ -43,20 +39,13 @@ export async function performSyncJob(
 }
 
 async function prepareSyncJob(window: Window): Promise<SyncJobParams> {
-  const notion = getNotionClient(window);
-  const databaseID = getRequiredNoteroPref(NoteroPref.notionDatabaseID);
-  const databaseProperties = await retrieveDatabaseProperties(
-    notion,
-    databaseID,
-  );
+  const yuque = new YuqueClient();
   const citationFormat = getCitationFormat();
   const pageTitleFormat = getPageTitleFormat();
 
   return {
     citationFormat,
-    databaseID,
-    databaseProperties,
-    notion,
+    yuque,
     pageTitleFormat,
   };
 }
@@ -71,17 +60,6 @@ function getCitationFormat(): string {
 
 function getPageTitleFormat(): PageTitleFormat {
   return getNoteroPref(NoteroPref.pageTitleFormat) || PageTitleFormat.itemTitle;
-}
-
-async function retrieveDatabaseProperties(
-  notion: Client,
-  databaseID: string,
-): Promise<DatabaseProperties> {
-  const database = await notion.databases.retrieve({
-    database_id: databaseID,
-  });
-
-  return database.properties;
 }
 
 async function syncItems(
@@ -101,12 +79,13 @@ async function syncItems(
 
     try {
       if (item.isNote()) {
-        await syncNoteItem(item, params.notion);
+        await syncNoteItem(item, params.yuque);
       } else {
         await syncRegularItem(item, params);
       }
     } catch (error) {
-      throw new ItemSyncError(error, item);
+      logger.error('Sync failed for item:', item.getDisplayTitle(), error);
+      throw new ItemSyncError(error instanceof Error ? error.message : String(error), item);
     } finally {
       logger.groupEnd();
     }
@@ -122,20 +101,28 @@ async function handleError(
   progressWindow: ProgressWindow,
   window: Window,
 ) {
-  let cause = error;
+  let errorMessage: string;
   let failedItem: Zotero.Item | undefined;
 
   if (error instanceof ItemSyncError) {
-    cause = error.cause;
+    errorMessage = error.message;
     failedItem = error.item;
+  } else if (error instanceof Error) {
+    errorMessage = error.message;
+  } else {
+    errorMessage = String(error);
   }
 
-  const errorMessage = await getLocalizedErrorMessage(
-    cause,
-    window.document.l10n,
-  );
+  logger.error('Sync job failed:', errorMessage, failedItem?.getDisplayTitle());
 
-  logger.error(error, failedItem?.getDisplayTitle());
-
-  progressWindow.fail(errorMessage, failedItem);
+  try {
+    const localizedMessage = await getLocalizedErrorMessage(
+      errorMessage,
+      window.document.l10n,
+    );
+    progressWindow.fail(localizedMessage, failedItem);
+  } catch (localizationError) {
+    logger.error('Failed to localize error message:', localizationError);
+    progressWindow.fail(errorMessage, failedItem);
+  }
 }

@@ -1,3 +1,4 @@
+import { getRequiredNoteroPref, NoteroPref } from '../prefs/notero-pref';
 import { NOTION_TAG_NAME } from '../constants';
 import { getPageIDFromURL, isNotionURL } from '../sync/notion-utils';
 import { isObject } from '../utils';
@@ -185,4 +186,57 @@ so that it can properly update the Notion page for this item.</p>
 export async function saveNotionTag(item: Zotero.Item): Promise<void> {
   item.addTag(NOTION_TAG_NAME);
   await item.saveTx({ skipNotifier: true });
+}
+
+export function getYuqueDocID(item: Zotero.Item): string | undefined {
+  const yuqueURL = getYuqueLinkAttachment(item)?.getField('url');
+  return yuqueURL ? yuqueURL.split('/').pop() : undefined;
+}
+
+export function getYuqueLinkAttachment(item: Zotero.Item): Zotero.Item | undefined {
+  return getAllYuqueLinkAttachments(item)[0];
+}
+
+export async function saveYuqueLinkAttachment(
+  item: Zotero.Item,
+  docSlug: string,
+): Promise<void> {
+  const attachments = getAllYuqueLinkAttachments(item);
+
+  if (attachments.length > 1) {
+    const attachmentIDs = attachments.slice(1).map(({ id }) => id);
+    await Zotero.Items.erase(attachmentIDs);
+  }
+
+  let attachment = attachments[0];
+  const yuqueURL = `https://www.yuque.com/${getRequiredNoteroPref(NoteroPref.yuqueGroupLogin)}/${getRequiredNoteroPref(NoteroPref.yuqueBookSlug)}/${docSlug}`;
+
+  if (attachment) {
+    attachment.setField('url', yuqueURL);
+  } else {
+    attachment = await Zotero.Attachments.linkFromURL({
+      parentItemID: item.id,
+      title: '语雀',
+      url: yuqueURL,
+      saveOptions: {
+        skipNotifier: true,
+      },
+    });
+  }
+
+  await attachment.saveTx();
+}
+
+export async function saveYuqueTag(item: Zotero.Item): Promise<void> {
+  item.addTag('语雀');
+  await item.saveTx({ skipNotifier: true });
+}
+
+function getAllYuqueLinkAttachments(item: Zotero.Item): Zotero.Item[] {
+  const attachmentIDs = item.getAttachments(false);
+  const attachments = Zotero.Items.get(attachmentIDs);
+  return attachments.filter((attachment) => {
+    const url = attachment.getField('url');
+    return url && url.includes('yuque.com');
+  });
 }
