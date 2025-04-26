@@ -14,6 +14,17 @@ interface ZoteroItem {
   getCreators: () => Array<{ firstName?: string; lastName?: string }>;
 }
 
+function getContentHash(content: string): string {
+  // Simple hash function to generate a hash from content
+  let hash = 0;
+  for (let i = 0; i < content.length; i++) {
+    const char = content.charCodeAt(i);
+    hash = ((hash << 5) - hash) + char;
+    hash = hash & hash; // Convert to 32bit integer
+  }
+  return Math.abs(hash).toString(16).slice(0, 8);
+}
+
 export async function syncRegularItem(
   item: ZoteroItem,
   params: SyncJobParams,
@@ -64,7 +75,7 @@ export async function syncRegularItem(
     // Create document in Yuque
     const docData = {
       title: pageTitle,
-      slug: pageTitle.toLowerCase().replace(/[^a-z0-9]+/g, '-'),
+      slug: getContentHash(content), // Use first 8 chars of content hash as slug
       body: content,
       format: 'lake'
     };

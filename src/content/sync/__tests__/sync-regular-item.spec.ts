@@ -54,6 +54,14 @@ const fakePageResponse: PageObjectResponse = {
   url: 'fake-url',
 };
 
+// Mock Zotero global object
+const mockZotero = {
+  QuickCopy: {
+    getContentFromItems: vi.fn().mockResolvedValue({ text: 'Mock Citation' }),
+  },
+};
+(global as any).Zotero = mockZotero;
+
 function setup() {
   const regularItem = createZoteroItemMock();
   const yuque = mockDeep<YuqueClient>({
@@ -78,17 +86,76 @@ function setup() {
 }
 
 describe('syncRegularItem', () => {
-  it('creates new page with correct data', async () => {
-    const { yuque, params, regularItem } = setup();
+  it('should sync a regular item with author-date citation title format', async () => {
+    // Create mock item
+    const regularItem = createZoteroItemMock({
+      getField: (field: string) => {
+        switch (field) {
+          case 'title':
+            return 'Test Title';
+          case 'abstractNote':
+            return 'Test Abstract';
+          case 'date':
+            return '2024-03-20';
+          case 'url':
+            return 'https://example.com';
+          default:
+            return '';
+        }
+      },
+      getCreators: () => [{
+        firstName: 'John',
+        lastName: 'Doe',
+        fieldMode: 0,
+        creatorTypeID: 1
+      }]
+    });
 
+    // Create mock YuqueClient
+    const yuque = mockDeep<YuqueClient>();
+    yuque.createLakeContent.mockReturnValue('fake lake content');
+    yuque.createDoc.mockResolvedValue({
+      data: {
+        id: 'fake-doc-id',
+        title: 'Doe, 2024',
+        slug: 'doe-2024',
+        body: 'fake lake content',
+        format: 'lake'
+      }
+    });
+    Object.defineProperty(yuque, 'namespace', {
+      get: () => 'fake-namespace'
+    });
+
+    // Create sync params
+    const params: SyncJobParams = {
+      yuque,
+      citationFormat: 'fake-citation-format',
+      pageTitleFormat: PageTitleFormat.itemAuthorDateCitation
+    };
+
+    // Perform sync
     await syncRegularItem(regularItem, params);
 
-    expect(yuque.createDoc).toHaveBeenCalledWith('fake-namespace', {
-      title: expect.any(String),
-      slug: expect.any(String),
-      body: 'fake-content',
-      format: 'lake'
-    });
+    // Verify YuqueClient calls
+    expect(yuque.createLakeContent).toHaveBeenCalledWith(
+      'Test Title',
+      'Test Abstract',
+      'John Doe',
+      '2024-03-20',
+      'https://example.com',
+      'Mock Citation'
+    );
+
+    expect(yuque.createDoc).toHaveBeenCalledWith(
+      'fake-namespace',
+      {
+        title: 'Doe, 2024',
+        slug: 'doe-2024',
+        body: 'fake lake content',
+        format: 'lake'
+      }
+    );
   });
 
   it('throws error when API call fails', async () => {

@@ -3,7 +3,7 @@ import type {
   AppendBlockChildrenResponse,
   PartialBlockObjectResponse,
 } from '@notionhq/client/build/src/api-endpoints';
-import { describe, expect, it, vi } from 'vitest';
+import { describe, expect, it, vi, beforeEach } from 'vitest';
 import { mockDeep, objectContainsValue } from 'vitest-mock-extended';
 
 import { createZoteroItemMock } from '../../../../test/utils';
@@ -14,8 +14,12 @@ import {
   saveSyncedNote,
 } from '../../data/item-data';
 import { syncNoteItem } from '../sync-note-item';
+import { YuqueClient } from '../yuque-client';
+import { SyncJobParams } from '../sync-job';
+import { PageTitleFormat } from '../../prefs/notero-pref';
 
 vi.mock('../../data/item-data');
+vi.mock('../yuque-client');
 
 const containerHeadingBlock = {
   heading_1: {
@@ -75,6 +79,64 @@ function setup({ syncedNotes }: { syncedNotes: SyncedNotes }) {
 }
 
 describe('syncNoteItem', () => {
+  let yuque: YuqueClient;
+  let params: SyncJobParams;
+
+  beforeEach(() => {
+    yuque = new YuqueClient({
+      token: 'fake-token',
+      groupLogin: 'fake-group',
+      bookSlug: 'fake-book'
+    });
+
+    vi.mocked(yuque.createDoc).mockResolvedValue({ 
+      id: 'fake-doc-id', 
+      title: 'fake-title', 
+      slug: 'fake-slug', 
+      body: 'fake-body', 
+      format: 'lake' 
+    });
+    vi.mocked(yuque.createLakeContent).mockReturnValue('fake-content');
+    Object.defineProperty(yuque, 'namespace', {
+      get: () => 'fake-namespace'
+    });
+
+    params = {
+      yuque,
+      note: {
+        id: 'fake-id',
+        libraryID: 1,
+        key: 'fake-key',
+        itemType: 'note',
+        note: 'fake-note',
+        tags: [],
+        relations: {},
+        dateAdded: '2024-01-01',
+        dateModified: '2024-01-01'
+      },
+      pageTitleFormat: PageTitleFormat.itemTitle,
+      pageID: undefined
+    };
+  });
+
+  it('should create a new page with note content', async () => {
+    const result = await syncNoteItem(params);
+    expect(result).toBeDefined();
+    expect(vi.mocked(yuque.createDoc)).toHaveBeenCalledWith(
+      'fake-namespace',
+      {
+        title: expect.any(String),
+        body: expect.any(String),
+        format: 'lake'
+      }
+    );
+  });
+
+  it('should handle API call failure', async () => {
+    vi.mocked(yuque.createDoc).mockRejectedValue(new Error('API Error'));
+    await expect(syncNoteItem(params)).rejects.toThrow('API Error');
+  });
+
   it('throws an error when note has no parent', async () => {
     const { noteItem, notion } = setup({ syncedNotes: {} });
     noteItem.isTopLevelItem.mockReturnValue(true);
