@@ -1,12 +1,21 @@
-import { YuqueClient } from './yuque-client';
+import { PageTitleFormat } from '../prefs/notero-pref';
 import { logger } from '../utils';
 import type { SyncJobParams } from './sync-job';
-import { PageTitleFormat } from '../prefs/notero-pref';
+import { YuqueClient } from './yuque-client';
 
-declare const Zotero: any;
+declare const Zotero: {
+  QuickCopy: {
+    getContentFromItems: (items: unknown[], format: string) => Promise<{ text: string }>;
+  };
+};
+
+interface ZoteroItem {
+  getField: (field: string) => string | undefined;
+  getCreators: () => Array<{ firstName?: string; lastName?: string }>;
+}
 
 export async function syncRegularItem(
-  item: any,
+  item: ZoteroItem,
   params: SyncJobParams,
 ): Promise<void> {
   const { yuque, citationFormat, pageTitleFormat } = params;
@@ -15,7 +24,8 @@ export async function syncRegularItem(
     // Get item data
     const title = item.getField('title') || '';
     const abstract = item.getField('abstractNote') || '';
-    const authors = item.getCreators().map((creator: any) => 
+    const creators = item.getCreators() || [];
+    const authors = creators.map((creator) => 
       `${creator.firstName || ''} ${creator.lastName || ''}`
     ).join(', ');
     const date = item.getField('date') || '';
@@ -52,7 +62,13 @@ export async function syncRegularItem(
     }
 
     // Create document in Yuque
-    const response = await yuque.createDoc(pageTitle, content);
+    const docData = {
+      title: pageTitle,
+      slug: pageTitle.toLowerCase().replace(/[^a-z0-9]+/g, '-'),
+      body: content,
+      format: 'lake'
+    };
+    const response = await yuque.createDoc(yuque.namespace, docData);
     logger.log('Successfully synced item to Yuque:', response.data.id);
   } catch (error) {
     logger.error('Failed to sync item to Yuque:', error);

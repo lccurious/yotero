@@ -10,6 +10,7 @@ import type { DatabaseRequestProperties } from '../notion-types';
 import { buildProperties } from '../property-builder';
 import type { SyncJobParams } from '../sync-job';
 import { syncRegularItem } from '../sync-regular-item';
+import { YuqueClient } from '../yuque-client';
 
 vi.mock('../../data/item-data');
 vi.mock('../property-builder');
@@ -53,134 +54,48 @@ const fakePageResponse: PageObjectResponse = {
   url: 'fake-url',
 };
 
-function setup({ pageID }: { pageID?: string }) {
+function setup() {
   const regularItem = createZoteroItemMock();
-  const notion = mockDeep<Client>({
+  const yuque = mockDeep<YuqueClient>({
     fallbackMockImplementation: () => {
       throw new Error('NOT MOCKED');
     },
   });
 
-  vi.mocked(getNotionPageID).mockReturnValue(pageID);
-  vi.mocked(buildProperties).mockResolvedValue(fakePageProperties);
-
-  notion.pages.create.mockResolvedValue(fakePageResponse);
-  notion.pages.update.mockResolvedValue(fakePageResponse);
-  notion.pages.retrieve.mockResolvedValue(fakePageResponse);
+  yuque.createDoc.mockResolvedValue({ data: { id: 'fake-doc-id', title: 'fake-title', slug: 'fake-slug', body: 'fake-body', format: 'lake' } });
+  yuque.createLakeContent.mockReturnValue('fake-content');
+  Object.defineProperty(yuque, 'namespace', {
+    get: () => 'fake-namespace'
+  });
 
   const params: SyncJobParams = {
-    citationFormat: fakeCitationFormat,
-    databaseID: fakeDatabaseID,
-    databaseProperties: fakeDatabaseProperties,
-    notion,
-    pageTitleFormat: fakePageTitleFormat,
+    citationFormat: 'fake-style',
+    pageTitleFormat: PageTitleFormat.itemAuthorDateCitation,
+    yuque,
   };
 
-  return { notion, params, regularItem };
+  return { yuque, params, regularItem };
 }
 
 describe('syncRegularItem', () => {
-  it('creates new page when page ID is not set', async () => {
-    const { notion, params, regularItem } = setup({ pageID: undefined });
+  it('creates new page with correct data', async () => {
+    const { yuque, params, regularItem } = setup();
 
     await syncRegularItem(regularItem, params);
 
-    expect(notion.pages.create).toHaveBeenCalledWith({
-      parent: { database_id: fakeDatabaseID },
-      properties: fakePageProperties,
-    });
-    expect(notion.pages.update).not.toHaveBeenCalled();
-  });
-
-  it('updates existing page when page ID is set', async () => {
-    const { notion, params, regularItem } = setup({ pageID: fakePageID });
-
-    await syncRegularItem(regularItem, params);
-
-    expect(notion.pages.update).toHaveBeenCalledWith({
-      page_id: fakePageID,
-      properties: fakePageProperties,
-    });
-    expect(notion.pages.create).not.toHaveBeenCalled();
-  });
-
-  it('creates new page when existing page is not found', async () => {
-    const { notion, params, regularItem } = setup({ pageID: fakePageID });
-    notion.pages.update.mockRejectedValue(objectNotFoundError);
-
-    await syncRegularItem(regularItem, params);
-
-    expect(notion.pages.update).toHaveBeenCalledWith({
-      page_id: fakePageID,
-      properties: fakePageProperties,
-    });
-    expect(notion.pages.create).toHaveBeenCalledWith({
-      parent: { database_id: fakeDatabaseID },
-      properties: fakePageProperties,
+    expect(yuque.createDoc).toHaveBeenCalledWith('fake-namespace', {
+      title: expect.any(String),
+      slug: expect.any(String),
+      body: 'fake-content',
+      format: 'lake'
     });
   });
 
-  it('creates new page when existing page belongs to different database', async () => {
-    const { notion, params, regularItem } = setup({ pageID: fakePageID });
-    notion.pages.update.mockResolvedValue({
-      ...fakePageResponse,
-      parent: { database_id: 'different-database-id', type: 'database_id' },
-    });
+  it('throws error when API call fails', async () => {
+    const { yuque, params, regularItem } = setup();
+    const error = new Error('API error');
+    yuque.createDoc.mockRejectedValue(error);
 
-    await syncRegularItem(regularItem, params);
-
-    expect(notion.pages.update).toHaveBeenCalledWith({
-      page_id: fakePageID,
-      properties: fakePageProperties,
-    });
-    expect(notion.pages.create).toHaveBeenCalledWith({
-      parent: { database_id: fakeDatabaseID },
-      properties: fakePageProperties,
-    });
-  });
-
-  it('creates new page when validation error is caused by differing database', async () => {
-    const { notion, params, regularItem } = setup({ pageID: fakePageID });
-    notion.pages.update.mockRejectedValue(validationError);
-    notion.pages.retrieve.mockResolvedValue({
-      ...fakePageResponse,
-      parent: { database_id: 'different-database-id', type: 'database_id' },
-    });
-
-    await syncRegularItem(regularItem, params);
-
-    expect(notion.pages.update).toHaveBeenCalledWith({
-      page_id: fakePageID,
-      properties: fakePageProperties,
-    });
-    expect(notion.pages.create).toHaveBeenCalledWith({
-      parent: { database_id: fakeDatabaseID },
-      properties: fakePageProperties,
-    });
-  });
-
-  it('throws error when validation error is not caused by differing database', async () => {
-    const { notion, params, regularItem } = setup({ pageID: fakePageID });
-    notion.pages.update.mockRejectedValue(validationError);
-
-    await expect(() => syncRegularItem(regularItem, params)).rejects.toThrow(
-      validationError,
-    );
-  });
-
-  it('throws error when error is unexpected type', async () => {
-    const { notion, params, regularItem } = setup({ pageID: fakePageID });
-    const unexpectedError = new APIResponseError({
-      code: APIErrorCode.InternalServerError,
-      status: 500,
-      message: 'Internal server error',
-      headers: {},
-      rawBodyText: 'Internal server error',
-    });
-    notion.pages.update.mockRejectedValue(unexpectedError);
-
-    await expect(() => syncRegularItem(regularItem, params)).rejects.toThrow(
-      unexpectedError,
-    );
+    await expect(() => syncRegularItem(regularItem, params)).rejects.toThrow(error);
   });
 });
